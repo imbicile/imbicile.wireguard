@@ -1,0 +1,35 @@
+{{ ansible_managed | comment }}
+{% set seed = range(1, 254) | random | string() %}
+{% set wireguard_server_ip = '192.168.' + seed + '.1' %}
+{% set wg_client_ip = wireguard_server_ip.split('.') %}
+{% set wg_server_net = ansible_default_ipv4.address.split('.') %}
+
+[Interface]
+ListenPort = {{ wireguard_server_port }}
+Address = {{ wireguard_server_ip }}/24
+PrivateKey = {{ wireguard_server_private_key.stdout }}
+
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE
+
+# Client 1 server conf example
+[Peer]
+PublicKey = {{ wireguard_client_public_key.stdout }}
+AllowedIPs = {{ wg_client_ip[0] }}.{{ wg_client_ip[1] }}.{{ wg_client_ip[2] }}.2/32, {{ wireguard_client_network }}
+
+# ============================
+# Client 1 client conf example
+# ============================
+
+# [Interface]
+# Address = {{ wg_client_ip[0] }}.{{ wg_client_ip[1] }}.{{ wg_client_ip[2] }}.2/32
+# PrivateKey = {{ wireguard_client_private_key.stdout }}
+
+# PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o ens160 -j MASQUERADE
+# PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o ens160 -j MASQUERADE
+
+# [Peer]
+# Endpoint = {{ ansible_default_ipv4.address }}:{{ wireguard_server_port }}
+# PublicKey = {{ wireguard_server_public_key.stdout }}
+# AllowedIPs = {{ wireguard_server_ip }}/32, {{ wg_server_net[0] }}.{{ wg_server_net[1] }}.{{ wg_server_net[2] }}.0/24
+# PersistentKeepalive = 15

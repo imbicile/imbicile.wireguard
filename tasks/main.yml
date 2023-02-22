@@ -1,0 +1,77 @@
+---
+# tasks file for imbicile.wireguard
+- name: Update
+  ansible.builtin.apt:
+    pkg:
+      - wireguard
+      - wireguard-tools
+      - iptables
+    state: latest
+    update_cache: true
+
+- name: Add modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - nf_conntrack
+    - wireguard
+
+- name: Set net.ipv4.ip_forward
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - net.ipv4.ip_forward
+    - net.ipv4.conf.all.forwarding
+    - net.ipv6.conf.all.forwarding
+
+- name: Set net.netfilter.nf_conntrack_max
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1048576"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - net.netfilter.nf_conntrack_max
+    - net.nf_conntrack_max
+
+- name: Genrate server key
+  ansible.builtin.shell: |
+    wg genkey | tee /etc/wireguard/server-private.key | wg pubkey >/etc/wireguard/server-public.key
+    cat /etc/wireguard/server-private.key
+  changed_when: false
+  failed_when: false
+  register: wireguard_server_private_key
+
+- name: Get server publick key
+  ansible.builtin.command: cat /etc/wireguard/server-public.key
+  changed_when: false
+  failed_when: false
+  register: wireguard_server_public_key
+
+- name: Genrate client key
+  ansible.builtin.shell: |
+    wg genkey | tee /etc/wireguard/client-private.key | wg pubkey >/etc/wireguard/client-public.key
+    cat /etc/wireguard/client-private.key
+  changed_when: false
+  failed_when: false
+  register: wireguard_client_private_key
+
+- name: Get client publick key
+  ansible.builtin.command: cat /etc/wireguard/client-public.key
+  changed_when: false
+  failed_when: false
+  register: wireguard_client_public_key
+
+- name: Create conf
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    owner: root
+    group: root
+  notify: Restart wireguard

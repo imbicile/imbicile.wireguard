@@ -1,0 +1,9 @@
+---
+# handlers file for imbicile.wireguard
+- name: Restart wireguard
+  ansible.builtin.systemd:
+    daemon_reload: true
+    enabled: true
+    masked: false
+    name: wg-quick@wg0.service
+    state: restarted

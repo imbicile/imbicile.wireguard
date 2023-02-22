@@ -1,0 +1,5 @@
+---
+# defaults file for imbicile.wireguard
+
+wireguard_server_port: 15604
+wireguard_client_network: "10.200.0.0/24"
